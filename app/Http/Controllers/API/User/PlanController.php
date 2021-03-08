@@ -42,13 +42,4 @@ class PlanController extends Controller
         return Plan::createStripePaymentMethods($request->all());
     }
 
-    /**
-     * Create Token
-     * @param TokenRequest $request
-     * @return mixed
-     */
-    public function stripeTokenCreate(TokenRequest $request)
-    {
-        return Plan::createStripeToken($request->all());
-    }
 }

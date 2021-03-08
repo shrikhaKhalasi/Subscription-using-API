@@ -3,14 +3,14 @@
 namespace App\Models;
 
 use App\Http\Resources\PlanResource;
+use App\Traits\StripeTrait;
 use Illuminate\Database\Eloquent\Model;
 use Stripe\Stripe;
-use App\Traits\Stripes;
 
 
 class Plan extends Model
 {
-    use Stripes;
+    use StripeTrait;
 
     protected $fillable = [
         'name',
