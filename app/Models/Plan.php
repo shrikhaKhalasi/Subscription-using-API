@@ -6,12 +6,13 @@ use App\Events\MastersBroadcasting;
 use App\Http\Resources\PlanResource;
 use App\Traits\StripeTrait;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Stripe\Stripe;
 
 
 class Plan extends Model
 {
-    use StripeTrait;
+    use StripeTrait,SoftDeletes;
 
     protected $fillable = [
         'name',
@@ -51,8 +52,15 @@ class Plan extends Model
         else
             Stripe::setApiKey($stripeSecretKey);
 
-        // set via client
-        if (is_null($stripeSecretKey))
+    }
+    /**
+     * common function for set the stripe secret key via client function.
+     *
+     * @param bool $stripeSecretKey - pass you custom key
+     */
+    public static function setStripeSecretViaClient($stripeSecretKey = false)
+    {
+        if (!$stripeSecretKey)
             $stripe = new \Stripe\StripeClient(
                 Plan::setStripeSecretKey()
             );
@@ -149,5 +157,85 @@ class Plan extends Model
             'trial' => $trialDays,
             'active' => $active,
         ];
+    }
+
+    /**
+     * get the plan name by the stripe plan id.
+     *
+     * @param $stripePlanId - pass stripe plan id (ex. plan_Id6DLD0XsJ9Nzb)
+     * @return string
+     */
+    public static function getPlanNameByStripeId($stripePlanId)
+    {
+        $planName = '';
+        $plan = Plan::select('name')->where('stripe_plan_id', $stripePlanId)->first();
+        if ($plan)
+            $planName = $plan->name;
+
+        return $planName;
+    }
+
+    /**
+     * user plan subscription common response.
+     *
+     * @param $subscription - single subscription object.
+     * @return string[]
+     */
+    public static function subscriptionResponseCommon($subscription)
+    {
+        $planName = self::getPlanNameByStripeId($subscription->stripe_plan);
+
+        return [
+            "id" => (string)$subscription->id,
+            "user_id" => (string)$subscription->user_id,
+            "name" => (string)$subscription->name,
+            "stripe_id" => (string)$subscription->stripe_id,
+            "stripe_status" => (string)$subscription->stripe_status,
+            "stripe_plan" => (string)$subscription->stripe_plan,
+            "plan_name" => (string)$planName,
+            "quantity" => (string)$subscription->quantity,
+            "trial_ends_at" => (string)$subscription->trial_ends_at,
+            "ends_at" => (string)$subscription->ends_at,
+            "created_at" => (string)$subscription->created_at,
+            "updated_at" => (string)$subscription->updated_at,
+            // "items" => $subscription->items,
+        ];
+    }
+
+    /**
+     * update plan.
+     *
+     * @param $query
+     * @param $request
+     * @param $plan - plan object
+     * @return mixed
+     * @throws \Stripe\Exception\ApiErrorException
+     */
+    public function scopeUpdatePlan($query, $request, $plan)
+    {
+        $this->setStripeSecret();
+        $filter = $this->getTrialAndActiveFilterValueForCreate($request);
+
+        \Stripe\Plan::update($plan->stripe_plan_id, [
+            'nickname' => $request->get('name'),
+            'active' => $filter['active'],
+            'trial_period_days' => $filter['trial'],
+        ]);
+
+        \stripe\Product::update($plan->stripe_product_id, [
+            'name' => $request->get('name'),
+        ]);
+
+        $data = [
+            'name' => $request->get('name'),
+            'trial_period_days' => $request->get('trial_period_days'),
+            'is_active' => $request->get('is_active'),
+            'is_trial' => $request->get('is_trial'),
+        ];
+
+        $plan->update($data);
+        event(new MastersBroadcasting($plan, config('constants.broadcasting.operation_code.edit')));
+
+        return $plan;
     }
 }

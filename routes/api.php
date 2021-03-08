@@ -16,11 +16,15 @@ Route::post('login-user', 'API\User\LoginController@login');
 
 Route::group(['middleware' => 'auth:api'], function() {
 
-    Route::get('plans', 'API\User\PlanController@index');
-    Route::post('create-plans', 'API\User\PlanController@create');
+    Route::apiResource('plans', 'API\User\PlanController');
     Route::post('payment-methods', 'API\User\PlanController@stripePaymentMethodsCreate');
     Route::post('tokens', 'API\User\PlanController@stripeTokenCreate');
 
     Route::post('subscription','API\User\SubscriptionController@createSubscription');
+    Route::get('list_payment_methods', 'API\User\SubscriptionController@listPaymentMethods');
+    Route::get('subscriber_invoice_list', 'API\User\SubscriptionController@getSubscriberInvoiceList');
+    Route::post('download_invoice', 'API\User\SubscriptionController@invoiceDownload');
+    Route::get('user_plans_listing', 'API\User\SubscriptionController@plansListing');
+
 });
 
