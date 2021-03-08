@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Events\MastersBroadcasting;
 use App\Http\Resources\PlanResource;
 use App\Traits\StripeTrait;
 use Illuminate\Database\Eloquent\Model;
@@ -123,6 +124,8 @@ class Plan extends Model
         $data['total_subscriptions'] = '0';
 
         $plan = $this->create($data);
+        event(new MastersBroadcasting($plan, config('constants.broadcasting.operation_code.add')));
+
         return $plan;
     }
 
